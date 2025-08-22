@@ -1,16 +1,18 @@
 <?php
-$folder = "Alternador de Empresa";  // mesma pasta do zip.php
+$folder = "Alternador de Empresa";
 $zipName = "Alternador_de_Empresa.zip";
 
 if (!is_dir($folder)) {
-    exit("Erro: pasta '$folder' não encontrada.");
+    http_response_code(404);
+    exit("Pasta não encontrada");
 }
 
 $zip = new ZipArchive();
 $zipPath = sys_get_temp_dir() . "/" . $zipName;
 
 if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
-    exit("Não foi possível criar o arquivo ZIP.");
+    http_response_code(500);
+    exit("Erro ao criar ZIP");
 }
 
 $files = new RecursiveIteratorIterator(
@@ -18,24 +20,27 @@ $files = new RecursiveIteratorIterator(
     RecursiveIteratorIterator::SELF_FIRST
 );
 
+$basePath = realpath($folder) . DIRECTORY_SEPARATOR;
+
 foreach ($files as $file) {
-    $filePath = realpath($file);
-    if (is_dir($filePath)) {
-        $zip->addEmptyDir(str_replace($folder . "/", '', $filePath . '/'));
+    $filePath = $file->getRealPath();
+    $relativePath = substr($filePath, strlen($basePath));
+    $relativePath = str_replace('\\', '/', $relativePath);
+    $zipPath_internal = "Alternador de Empresa/" . $relativePath;
+    
+    if ($file->isDir()) {
+        $zip->addEmptyDir($zipPath_internal . '/');
     } else {
-        $zip->addFile($filePath, str_replace($folder . "/", '', $filePath));
+        $zip->addFile($filePath, $zipPath_internal);
     }
 }
 
 $zip->close();
 
-ob_clean();
-flush();
-
-header('Content-Type: application/zip');
+// SEM Content-Length para evitar o erro
+header('Content-Type: application/octet-stream');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
-header('Content-Length: ' . filesize($zipPath));
 
 readfile($zipPath);
 unlink($zipPath);
-exit;
+?>

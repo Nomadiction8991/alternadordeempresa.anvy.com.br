@@ -18,40 +18,24 @@ $files = new RecursiveIteratorIterator(
     RecursiveIteratorIterator::SELF_FIRST
 );
 
-// Obter o caminho base para criar caminhos relativos corretos
-$basePath = realpath($folder) . DIRECTORY_SEPARATOR;
-
 foreach ($files as $file) {
-    $filePath = $file->getRealPath();
-    
-    // Criar caminho relativo removendo o caminho base
-    $relativePath = substr($filePath, strlen($basePath));
-    
-    // Normalizar separadores para ZIP (sempre usar /)
-    $relativePath = str_replace('\\', '/', $relativePath);
-    
-    if ($file->isDir()) {
-        // Adicionar diretório com barra no final
-        $zip->addEmptyDir($relativePath . '/');
+    $filePath = realpath($file);
+    if (is_dir($filePath)) {
+        $zip->addEmptyDir(str_replace($folder . "/", '', $filePath . '/'));
     } else {
-        // Adicionar arquivo
-        $zip->addFile($filePath, $relativePath);
+        $zip->addFile($filePath, str_replace($folder . "/", '', $filePath));
     }
 }
 
 $zip->close();
 
-// Limpar buffer de saída
 ob_clean();
 flush();
 
-// Enviar headers
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
 header('Content-Length: ' . filesize($zipPath));
 
-// Enviar arquivo e limpar
 readfile($zipPath);
 unlink($zipPath);
 exit;
-?>

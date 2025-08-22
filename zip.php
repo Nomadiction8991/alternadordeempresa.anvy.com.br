@@ -30,12 +30,15 @@ foreach ($files as $file) {
     // Normalizar separadores para ZIP (sempre usar /)
     $relativePath = str_replace('\\', '/', $relativePath);
     
+    // MANTER a pasta "Alternador de Empresa" no ZIP
+    $zipPath = "Alternador de Empresa/" . $relativePath;
+    
     if ($file->isDir()) {
         // Adicionar diretório com barra no final
-        $zip->addEmptyDir($relativePath . '/');
+        $zip->addEmptyDir($zipPath . '/');
     } else {
         // Adicionar arquivo
-        $zip->addFile($filePath, $relativePath);
+        $zip->addFile($filePath, $zipPath);
     }
 }
 

@@ -1,8 +1,11 @@
 <?php
-$folder = __DIR__ . "/Alternador de Empresa";  // caminho da pasta no servidor
+$folder = "Alternador de Empresa";  // mesma pasta do zip.php
 $zipName = "Alternador_de_Empresa.zip";
 
-// Carrega a classe ZipArchive
+if (!is_dir($folder)) {
+    exit("Erro: pasta '$folder' não encontrada.");
+}
+
 $zip = new ZipArchive();
 $zipPath = sys_get_temp_dir() . "/" . $zipName;
 
@@ -10,7 +13,6 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
     exit("Não foi possível criar o arquivo ZIP.");
 }
 
-// Função para adicionar arquivos recursivamente
 $files = new RecursiveIteratorIterator(
     new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS),
     RecursiveIteratorIterator::SELF_FIRST
@@ -27,11 +29,13 @@ foreach ($files as $file) {
 
 $zip->close();
 
-// Força o download do ZIP
+ob_clean();
+flush();
+
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
 header('Content-Length: ' . filesize($zipPath));
 
 readfile($zipPath);
-unlink($zipPath); // limpa arquivo temporário
+unlink($zipPath);
 exit;

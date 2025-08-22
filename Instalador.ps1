@@ -31,3 +31,5 @@ Remove-Item $zip -Force
 Write-Host "Instalação concluída com sucesso!"
 
 Start-Sleep -Seconds 3
+
+pause

@@ -1,6 +1,6 @@
 # Caminhos
 $dest = "C:\Ello"
-$url = "http://alternadordeempresa.anvy.com.br/dev/zip.php"
+$url = "http://alternadordeempresa.anvy.com.br/dev/listfiles.php"
 
 # Verificar se pasta Ello existe
 if (!(Test-Path $dest)) {
@@ -9,72 +9,58 @@ if (!(Test-Path $dest)) {
     exit
 }
 
-# Remover pasta antiga
+# Pasta de destino
 $pastaAlvo = "$dest\Alternador de Empresa"
 if (Test-Path $pastaAlvo) {
     Remove-Item $pastaAlvo -Recurse -Force
     Write-Host "Pasta antiga removida."
 }
 
-# Criar pasta temporária
-$tempDir = [System.IO.Path]::GetTempPath()
-$tempZip = Join-Path $tempDir "Alternador_temp.zip"
+# Criar pasta
+New-Item -ItemType Directory -Path $pastaAlvo -Force | Out-Null
 
-# Baixar arquivo
+# Baixar lista de arquivos
 Write-Host "Conectando com servidor..."
 try {
-    # Método mais tolerante a erros
-    $webClient = New-Object System.Net.WebClient
-    $webClient.Headers.Add('User-Agent', 'PowerShell-Download')
-    $webClient.DownloadFile($url, $tempZip)
-    
-    Write-Host "Download concluído!"
+    $response = Invoke-WebRequest -Uri $url -UseBasicParsing
+    $fileList = $response.Content | ConvertFrom-Json
 }
 catch {
-    Write-Host "Erro no download: $($_.Exception.Message)"
-    Write-Host "Verifique:"
-    Write-Host "1. Conexão com internet"
-    Write-Host "2. URL do servidor: $url"
-    Write-Host "3. Se o arquivo zip.php existe no servidor"
+    Write-Host "Erro ao conectar: $($_.Exception.Message)"
     pause
     exit
 }
 
-# Verificar se download foi bem sucedido
-if (!(Test-Path $tempZip) -or (Get-Item $tempZip).Length -eq 0) {
-    Write-Host "Download falhou - arquivo vazio ou não existe"
+# Se recebeu mensagem de erro
+if ($response.Content -eq "PASTA_NAO_ENCONTRADA") {
+    Write-Host "ERRO: Pasta não encontrada no servidor"
     pause
     exit
 }
 
-# Tentar extrair
-Write-Host "Extraindo arquivos..."
-try {
-    # Método .NET mais confiável
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($tempZip, $dest)
-    Write-Host "Extração bem sucedida! ✅"
-}
-catch {
-    Write-Host "Erro na extração: $($_.Exception.Message)"
-    Write-Host "O arquivo pode estar corrompido no servidor."
-    
-    # Mostrar conteúdo se for pequeno (possível mensagem de erro)
-    if ((Get-Item $tempZip).Length -lt 5000) {
-        try {
-            $conteudo = Get-Content $tempZip -Raw -Encoding UTF8
-            Write-Host "Conteúdo recebido: $conteudo"
+# Baixar e salvar cada arquivo
+Write-Host "Baixando $($fileList.Count) arquivos..."
+foreach ($file in $fileList) {
+    try {
+        $filePath = Join-Path $pastaAlvo $file.path
+        $directory = [System.IO.Path]::GetDirectoryName($filePath)
+        
+        # Criar pasta se não existir
+        if (!(Test-Path $directory)) {
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
         }
-        catch {
-            Write-Host "Não foi possível ler o conteúdo do arquivo"
-        }
+        
+        # Decodificar e salvar arquivo
+        $bytes = [System.Convert]::FromBase64String($file.content)
+        [System.IO.File]::WriteAllBytes($filePath, $bytes)
+        
+        Write-Host "✓ $($file.path)"
+    }
+    catch {
+        Write-Host "✗ Erro em $($file.path): $($_.Exception.Message)"
     }
 }
 
-# Limpar
-if (Test-Path $tempZip) {
-    Remove-Item $tempZip -Force
-}
-
-Write-Host "Processo finalizado!"
+Write-Host "Instalação concluída com sucesso! ✅"
+Write-Host "Arquivos instalados em: $pastaAlvo"
 pause

@@ -1,4 +1,7 @@
 <?php
+// Limpar qualquer output anterior
+if (ob_get_level()) ob_end_clean();
+
 $folder = "Alternador de Empresa";
 $zipName = "Alternador_de_Empresa.zip";
 
@@ -37,17 +40,14 @@ if (!$zip->close()) {
     exit("Erro ao fechar arquivo ZIP");
 }
 
-// Headers sem Content-Length para evitar o erro
+// Headers essenciais (SEM Content-Length)
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
+header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Limpar buffer de saída e enviar arquivo
-if (ob_get_level()) {
-    ob_end_clean();
-}
-
+// Enviar arquivo
 readfile($zipPath);
 unlink($zipPath);
 exit;

@@ -1,7 +1,7 @@
 # Caminhos
 $dest = "C:\Ello"
 $zip  = "$dest\Alternador.zip"
-$url  = "http://alternadordeempresa.anvy.com.br/dev/zip.php"  # PHP que gera ZIP
+$url  = "http://alternadordeempresa.anvy.com.br/dev/zip.php"
 
 # 1. Garantir que a pasta base existe
 if (!(Test-Path $dest)) {
@@ -20,51 +20,54 @@ if (Test-Path $target) {
 # 3. Baixar ZIP gerado pelo PHP
 Write-Host "Baixando pacote do servidor..."
 try {
-    # Usar WebClient como alternativa mais tolerante
+    # Usar WebClient que é mais tolerante
     $webClient = New-Object System.Net.WebClient
     $webClient.DownloadFile($url, $zip)
-    Write-Host "Download concluído."
+    Write-Host "Download concluído com sucesso."
 }
 catch {
-    Write-Host "Erro ao baixar arquivo: $($_.Exception.Message)"
-    Write-Host "Tentando método alternativo..."
+    Write-Host "Erro no download: $($_.Exception.Message)"
+    Write-Host "Tentando método alternativo com Invoke-WebRequest..."
     
-    # Tentar com Invoke-WebRequest com headers personalizados
     try {
-        $headers = @{
-            'Accept' = '*/*'
-            'User-Agent' = 'Mozilla/5.0 (Windows NT; Windows NT 10.0; pt-BR) WindowsPowerShell/5.1'
-        }
-        Invoke-WebRequest -Uri $url -OutFile $zip -Headers $headers -UseBasicParsing
+        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
         Write-Host "Download concluído com método alternativo."
     }
     catch {
-        Write-Host "Falha no download: $($_.Exception.Message)"
+        Write-Host "Falha completa no download: $($_.Exception.Message)"
+        Write-Host "Verifique a conexão com a internet e tente novamente."
         Pause
         exit
     }
 }
 
 # 4. Verificar se o arquivo ZIP foi baixado corretamente
-if (!(Test-Path $zip) -or (Get-Item $zip).Length -eq 0) {
-    Write-Host "Arquivo ZIP corrompido ou vazio!"
-    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+if (!(Test-Path $zip)) {
+    Write-Host "Arquivo ZIP não foi baixado!"
     Pause
     exit
 }
 
-Write-Host "Tamanho do arquivo: $((Get-Item $zip).Length) bytes"
+$fileSize = (Get-Item $zip).Length
+Write-Host "Tamanho do arquivo: $fileSize bytes"
+
+if ($fileSize -eq 0) {
+    Write-Host "Arquivo ZIP está vazio - possivel erro no servidor."
+    Remove-Item $zip -Force
+    Pause
+    exit
+}
 
 # 5. Descompactar
 Write-Host "Extraindo arquivos..."
 try {
-    # Método mais robusto para extrair
+    # Método preferencial usando .NET
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $dest)
     Write-Host "Extração concluída com sucesso."
 }
 catch {
-    Write-Host "Erro ao extrair arquivos: $($_.Exception.Message)"
+    Write-Host "Erro na extração: $($_.Exception.Message)"
     Write-Host "Tentando método Expand-Archive..."
     
     try {
@@ -72,18 +75,19 @@ catch {
         Write-Host "Extração concluída com Expand-Archive."
     }
     catch {
-        Write-Host "Falha ao extrair arquivo ZIP: $($_.Exception.Message)"
-        Remove-Item $zip -Force -ErrorAction SilentlyContinue
+        Write-Host "Falha na extração: $($_.Exception.Message)"
+        Write-Host "O arquivo ZIP pode estar corrompido."
+        Remove-Item $zip -Force
         Pause
         exit
     }
 }
 
-# 6. Remover ZIP
+# 6. Remover ZIP e finalizar
 Remove-Item $zip -Force
-
 Write-Host "Instalação concluída com sucesso!"
-Write-Host "Verifique se os arquivos foram extraídos em: $target"
+Write-Host "Arquivos extraídos em: $target"
 
-Start-Sleep -Seconds 3
-pause
+Start-Sleep -Seconds 2
+Write-Host "Pressione qualquer tecla para continuar..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

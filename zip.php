@@ -1,54 +1,34 @@
 <?php
-// Limpar qualquer output anterior
-if (ob_get_level()) ob_end_clean();
-
 $folder = "Alternador de Empresa";
 $zipName = "Alternador_de_Empresa.zip";
 
+// Verificar se a pasta existe
 if (!is_dir($folder)) {
-    http_response_code(404);
     exit("Pasta não encontrada");
 }
 
+// Criar arquivo ZIP
+$zipPath = tempnam(sys_get_temp_dir(), 'zip');
 $zip = new ZipArchive();
-$zipPath = sys_get_temp_dir() . "/" . $zipName;
+$zip->open($zipPath, ZipArchive::CREATE);
 
-if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
-    http_response_code(500);
-    exit("Erro ao criar ZIP");
-}
-
+// Adicionar arquivos
 $files = new RecursiveIteratorIterator(
-    new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS),
-    RecursiveIteratorIterator::LEAVES_ONLY
+    new RecursiveDirectoryIterator($folder),
+    RecursiveIteratorIterator::SELF_FIRST
 );
 
-$basePath = realpath($folder);
-
 foreach ($files as $file) {
-    if (!$file->isDir()) {
-        $filePath = $file->getRealPath();
-        $relativePath = substr($filePath, strlen($basePath) + 1);
-        $relativePath = str_replace('\\', '/', $relativePath);
-        
-        $zip->addFile($filePath, $relativePath);
+    if ($file->isFile()) {
+        $zip->addFile($file->getRealPath(), $file->getFilename());
     }
 }
 
-if (!$zip->close()) {
-    http_response_code(500);
-    exit("Erro ao fechar arquivo ZIP");
-}
+$zip->close();
 
-// Headers essenciais (SEM Content-Length)
+// Enviar para download
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
-
-// Enviar arquivo
 readfile($zipPath);
 unlink($zipPath);
-exit;
 ?>

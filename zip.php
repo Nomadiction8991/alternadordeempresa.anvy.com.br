@@ -17,7 +17,7 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
 
 $files = new RecursiveIteratorIterator(
     new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS),
-    RecursiveIteratorIterator::LEAVES_ONLY  // Alterado para LEAVES_ONLY
+    RecursiveIteratorIterator::LEAVES_ONLY
 );
 
 $basePath = realpath($folder);
@@ -37,12 +37,16 @@ if (!$zip->close()) {
     exit("Erro ao fechar arquivo ZIP");
 }
 
-// Headers corretos
+// Headers sem Content-Length para evitar o erro
 header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
-header('Content-Length: ' . filesize($zipPath));
 header('Pragma: no-cache');
 header('Expires: 0');
+
+// Limpar buffer de saída e enviar arquivo
+if (ob_get_level()) {
+    ob_end_clean();
+}
 
 readfile($zipPath);
 unlink($zipPath);

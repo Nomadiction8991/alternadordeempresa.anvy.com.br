@@ -17,30 +17,34 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
 
 $files = new RecursiveIteratorIterator(
     new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS),
-    RecursiveIteratorIterator::SELF_FIRST
+    RecursiveIteratorIterator::LEAVES_ONLY  // Alterado para LEAVES_ONLY
 );
 
-$basePath = realpath($folder) . DIRECTORY_SEPARATOR;
+$basePath = realpath($folder);
 
 foreach ($files as $file) {
-    $filePath = $file->getRealPath();
-    $relativePath = substr($filePath, strlen($basePath));
-    $relativePath = str_replace('\\', '/', $relativePath);
-    $zipPath_internal = "Alternador de Empresa/" . $relativePath;
-    
-    if ($file->isDir()) {
-        $zip->addEmptyDir($zipPath_internal . '/');
-    } else {
-        $zip->addFile($filePath, $zipPath_internal);
+    if (!$file->isDir()) {
+        $filePath = $file->getRealPath();
+        $relativePath = substr($filePath, strlen($basePath) + 1);
+        $relativePath = str_replace('\\', '/', $relativePath);
+        
+        $zip->addFile($filePath, $relativePath);
     }
 }
 
-$zip->close();
+if (!$zip->close()) {
+    http_response_code(500);
+    exit("Erro ao fechar arquivo ZIP");
+}
 
-// SEM Content-Length para evitar o erro
-header('Content-Type: application/octet-stream');
+// Headers corretos
+header('Content-Type: application/zip');
 header('Content-Disposition: attachment; filename="' . $zipName . '"');
+header('Content-Length: ' . filesize($zipPath));
+header('Pragma: no-cache');
+header('Expires: 0');
 
 readfile($zipPath);
 unlink($zipPath);
+exit;
 ?>

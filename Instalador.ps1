@@ -19,17 +19,50 @@ if (Test-Path $target) {
 
 # 3. Baixar ZIP gerado pelo PHP
 Write-Host "Baixando pacote do servidor..."
-Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+try {
+    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+}
+catch {
+    Write-Host "Erro ao baixar arquivo: $($_.Exception.Message)"
+    Pause
+    exit
+}
 
-# 4. Descompactar
+# 4. Verificar se o arquivo ZIP foi baixado corretamente
+if (!(Test-Path $zip) -or (Get-Item $zip).Length -eq 0) {
+    Write-Host "Arquivo ZIP corrompido ou vazio!"
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    Pause
+    exit
+}
+
+# 5. Descompactar usando método mais robusto
 Write-Host "Extraindo arquivos..."
-Expand-Archive -Path $zip -DestinationPath $dest -Force
+try {
+    # Método alternativo para extrair arquivos ZIP
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $dest)
+}
+catch {
+    Write-Host "Erro ao extrair arquivos: $($_.Exception.Message)"
+    Write-Host "Tentando método alternativo..."
+    
+    # Método de fallback usando Expand-Archive
+    try {
+        Expand-Archive -Path $zip -DestinationPath $dest -Force
+    }
+    catch {
+        Write-Host "Falha ao extrair arquivo ZIP. O arquivo pode estar corrompido."
+        Remove-Item $zip -Force -ErrorAction SilentlyContinue
+        Pause
+        exit
+    }
+}
 
-# 5. Remover ZIP
+# 6. Remover ZIP
 Remove-Item $zip -Force
 
 Write-Host "Instalação concluída com sucesso!"
 
 Start-Sleep -Seconds 3
-
 pause
